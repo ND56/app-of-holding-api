@@ -1,119 +1,53 @@
-// root of the application
-// when I want to start up the node app, I'm going to be
-// running this file.
+// body-parser is used so our API can receive JSON and we
+// can parse it; takes the string body and converts to a
+// JS object
+const bodyParser = require('body-parser')
+const express = require('express')
+
+// note that we load in our configured mongoose object; we want
+// our promises and connection to our database configured.
+const {mongoose} = require('./db/mongoose')
+const {User} = require('./models/user')
+const {Item} = require('./models/item')
 
 /* --------------------------------------------------- */
-/*         Configure Mongoose
+/*         Instantiate & Stores our Express App
 /* --------------------------------------------------- */
 
-// load in mongoose
-const mongoose = require('mongoose')
-
-// tell mongoose which promise library to use
-mongoose.Promise = global.Promise
-
-// now we need to connect to the database;
-// we pass the url for the DB server and we pass the
-// name of the database (note: doesn't need to have been
-// created yet)
-// NOTE: "mongodb" is the protocol -> look this up
-// NOTE: this conenction would take a few milliseconds; one
-// good thing about mongoose is we don't need to micromanage;
-// mongoose won't run subsequent DB queries until this
-// connection resolves
-// NOTE: originally the text between the slashes was
-// localhost:27017, but that didn't work, so I replaced
-// with the below. I've encountered this before, the numbers
-// I have below deifnitely represent my local host. There's
-// some issue here I should look up at some point.
-mongoose.connect('mongodb://127.0.0.1:27017/app-of-holding')
+const app = express()
 
 /* --------------------------------------------------- */
-/*         Define Item Mongoose Model
+/*         Configure Middleware
 /* --------------------------------------------------- */
 
-// model is the method we use in the mongoose library to
-// create a new model; first arg is string, second is obj
-// that defines the various properties for the model
-const Item = mongoose.model('Item', {
-  quantity: {
-    type: Number,
-    // adding a simple "required" validation
-    required: true
-  },
-  name: {
-    type: String,
-    required: true,
-    // adding a length validation means people can't
-    // provide an empty string to circumvent this
-    minlength: 1,
-    // the trim validator gets rid of any white space
-    // at the beginning or end of the value
-    trim: true
-  },
-  value: { // assume gold pieces for now
-    type: Number
-  },
-  notes: {
-    type: String,
-    trim: true,
-    // can add default values as well!
-    default: 'Nothing of note.'
-  },
-  weight: { // assume pounds
-    type: Number
-  },
-  category: {
-    type: String,
-    trim: true
-  }
+// the return value of this bodyParser.json() is a function
+// and that is the middleware that we need to give to express.
+// With this in place, we can now send JSON to our Express
+// application
+app.use(bodyParser.json())
+
+/* --------------------------------------------------- */
+/*         Route Handlers
+/* --------------------------------------------------- */
+
+app.post('/items', (req, res) => {
+  const item = new Item(req.body)
+
+  item.save()
+    .then((doc) => {
+      console.log(JSON.stringify(doc, null, 2))
+      res.send(doc)
+    })
+    .catch((e) => {
+      console.log(JSON.stringify(e, null, 2))
+      res.status(400).send(e)
+    })
 })
 
 /* --------------------------------------------------- */
-/*         Define User Mongoose Model
+/*         Causes Express App to Serve
 /* --------------------------------------------------- */
 
-const User = mongoose.model('User', {
-  email: {
-    type: String,
-    required: true,
-    trim: true,
-    minlength: 1
-  }
+app.listen(3000, () => {
+  console.log('\n\t**Listening on Port 3000**')
 })
-
-/* --------------------------------------------------- */
-/*         Test DB Queries
-/* --------------------------------------------------- */
-
-// run the item constructor that we created above
-// const newItem = new Item({
-//   quantity: 1,
-//   name: 'Scimitar',
-//   value: 25,
-//   notes: 'Picked up off goblin\'s corpse.',
-//   weight: 3,
-//   category: 'Weapon'
-// })
-
-// save returns a promise
-// on a successful save, you get the saved "document" returned
-// newItem.save().then((newDoc) => {
-//   console.log(newDoc)
-// }, (errorResp) => {
-//   console.log(errorResp)
-// })
-
-// NOTE: the object that's created has a property called "__v";
-// mongoose keeps track of the version of the model you're
-// working with --> this is represented by this property.
-
-// NOTE:  mongoose automatically takes our Item model and
-// converts to a collection by pluralizing and lower-casing;
-// we now have a collection called "items"
-
-// const newUser = new User({
-//   email: 'ndrew56@gmail.com'
-// })
-//
-// newUser.save().then(doc => console.log(doc), err => console.log(err))
